@@ -1,0 +1,2 @@
+add_executable(calibrate_scale main.cpp)
+target_link_libraries(calibrate_scale PRIVATE app_support slam opencv_highgui)

@@ -1,0 +1,145 @@
+%YAML:1.0
+---
+name: "route_from_maps/office_evening_trajectory.txt"
+map_path: "maps/office_evening.osa"
+geofence_max_radius_m: 15.808276176452637
+geofence_max_altitude_m: 4.5878019332885742
+geofence_min_altitude_m: -2.5248029232025146
+max_tracking_loss_ms: 4000
+min_confidence: 0.15000000596046448
+continuous: 1
+lookahead_m: 1.2000000476837158
+lookahead_corner_limit_rad: 0.60000002384185791
+waypoints:
+   -
+      label: kf_31
+      x: -0.26944217085838318
+      y: -0.47519701719284058
+      z: 3.6060605049133301
+      heading_rad: 1.160190224647522
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_35
+      x: -0.94026029109954834
+      y: -0.5897899866104126
+      z: 4.1124138832092285
+      heading_rad: 1.1083335876464844
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_38
+      x: -1.6197447776794434
+      y: -0.6957474946975708
+      z: 4.6115174293518066
+      heading_rad: 1.1418247222900391
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_41
+      x: -2.4069018363952637
+      y: -0.77371859550476074
+      z: 5.182675838470459
+      heading_rad: 1.1016013622283936
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_44
+      x: -3.3378093242645264
+      y: -0.8716970682144165
+      z: 5.6973061561584473
+      heading_rad: 1.0914231538772583
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_47
+      x: -4.2701678276062012
+      y: -0.97313785552978516
+      z: 6.2291803359985352
+      heading_rad: 1.0434523820877075
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_49
+      x: -5.0091762542724609
+      y: -1.0611931085586548
+      z: 6.7048707008361816
+      heading_rad: 1.0497108697891235
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_51
+      x: -5.7171921730041504
+      y: -1.1745480298995972
+      z: 7.2019739151000977
+      heading_rad: 1.0461061000823975
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_53
+      x: -6.4530243873596191
+      y: -1.2884079217910767
+      z: 7.7279872894287109
+      heading_rad: 1.0799647569656372
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_55
+      x: -7.1885747909545898
+      y: -1.3913953304290771
+      z: 8.1981325149536133
+      heading_rad: 1.0385324954986572
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_57
+      x: -7.9751720428466797
+      y: -1.4888414144515991
+      z: 8.6584491729736328
+      heading_rad: 1.0042778253555298
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_59
+      x: -8.8368635177612305
+      y: -1.5878021717071533
+      z: 9.1345863342285156
+      heading_rad: 1.1348108053207397
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000

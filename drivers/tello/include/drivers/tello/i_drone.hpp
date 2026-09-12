@@ -23,6 +23,11 @@ public:
     virtual bool takeoff() = 0;
     virtual bool land() = 0;
 
+    // Starts/stops the drone's H264 broadcast on UDP 11111 (`streamon` /
+    // `streamoff`). Decoding it is video/'s job, not the driver's - the
+    // driver only owns the command channel that switches it on.
+    virtual bool enableVideoStream(bool enable) = 0;
+
     // Continuous velocity streaming (maps to Tello's `rc a b c d`). Expected
     // to be called repeatedly (e.g. every 20-100ms) while flying.
     virtual void sendVelocity(const common::VelocityCommand& velocity) = 0;

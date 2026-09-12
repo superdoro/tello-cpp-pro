@@ -1,0 +1,2 @@
+add_executable(calibrate_camera main.cpp)
+target_link_libraries(calibrate_camera PRIVATE app_support opencv_calib3d opencv_highgui opencv_imgproc)

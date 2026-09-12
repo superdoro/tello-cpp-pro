@@ -1,5 +1,6 @@
 add_library(common STATIC
     src/logging.cpp
+    src/udp_socket.cpp
 )
 
 target_include_directories(common PUBLIC

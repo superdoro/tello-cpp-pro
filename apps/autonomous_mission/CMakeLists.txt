@@ -1,0 +1,2 @@
+add_executable(autonomous_mission main.cpp)
+target_link_libraries(autonomous_mission PRIVATE app_support slam control opencv_highgui)

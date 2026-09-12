@@ -1,0 +1,54 @@
+%YAML:1.0
+---
+name: "route_from_maps/office_trajectory.txt"
+map_path: "maps/office.osa"
+geofence_max_radius_m: 15.
+geofence_max_altitude_m: 3.
+geofence_min_altitude_m: -1.
+max_tracking_loss_ms: 4000
+min_confidence: 0.15000000596046448
+waypoints:
+   -
+      label: kf_12
+      x: -0.23543435335159302
+      y: -0.52019435167312622
+      z: 2.0893955230712891
+      heading_rad: 0.16050699353218079
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_17
+      x: -0.34927168488502502
+      y: -0.68733292818069458
+      z: 2.757404088973999
+      heading_rad: 1.0324379205703735
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_21
+      x: -0.86050385236740112
+      y: -0.70679163932800293
+      z: 3.0744693279266357
+      heading_rad: 1.4307374954223633
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_27
+      x: -1.7328741550445557
+      y: -0.70552724599838257
+      z: 3.2913916110992432
+      heading_rad: 1.5257598161697388
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000

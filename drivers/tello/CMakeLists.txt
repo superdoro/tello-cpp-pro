@@ -1,6 +1,5 @@
 add_library(tello_driver STATIC
     src/tello_driver.cpp
-    src/udp_socket.cpp
     src/tello_state_parser.cpp
 )
 

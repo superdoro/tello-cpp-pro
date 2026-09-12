@@ -40,12 +40,25 @@ private:
 };
 
 void printHelp() {
-    std::cout << "Manual Tello control\n"
+    std::cout << "Manual Tello control (hold a key to move, release to stop)\n"
                  "  w/s      : throttle up/down     a/d      : yaw ccw/cw\n"
                  "  arrow up/down    : forward/back  arrow left/right : roll left/right\n"
-                 "  space : zero velocity            t : takeoff   l : land\n"
+                 "  space : zero velocity now        t : takeoff   l : land\n"
                  "  x : EMERGENCY STOP                ESC : quit (lands first)\n";
 }
+
+// A terminal gives no key-release event, only a stream of repeated keydowns
+// while a key is held (via the OS's keyboard auto-repeat) and then silence
+// once released. Each axis is therefore zeroed if its key hasn't repeated
+// within kHoldTimeout. This must be longer than typical OS auto-repeat
+// intervals (a few tens of ms) so a genuine hold isn't misread as released,
+// but short enough that release-to-stop still feels immediate.
+struct AxisActivity {
+    std::chrono::steady_clock::time_point pitch{};
+    std::chrono::steady_clock::time_point roll{};
+    std::chrono::steady_clock::time_point throttle{};
+    std::chrono::steady_clock::time_point yaw{};
+};
 
 enum class Key { None, Up, Down, Left, Right, Escape, Char };
 
@@ -115,32 +128,56 @@ int main(int argc, char** argv) {
     RawTerminal rawTerminal;
 
     common::VelocityCommand velocity;
+    AxisActivity axisActivity;
     constexpr int kStep = 50;
     constexpr auto kTickInterval = std::chrono::milliseconds(50);
+    // Must exceed the OS's initial key-repeat delay (commonly 300-600ms)
+    // before a held key starts auto-repeating, or a genuine hold gets read
+    // as "released" during that gap and briefly stops before repeats kick
+    // in. The unavoidable trade-off: a single tap now also holds its
+    // velocity for up to this long, since a tap and the start of a hold are
+    // indistinguishable until a repeat either arrives or doesn't. Lower this
+    // (and your terminal's own repeat delay, e.g. `xset r rate 200 30`) for
+    // snappier stop-on-release at the cost of stutter on long holds.
+    constexpr auto kHoldTimeout = std::chrono::milliseconds(600);
 
     while (g_running) {
-        const KeyEvent event = readKey();
-        switch (event.key) {
-            case Key::Up: velocity.pitch = kStep; break;
-            case Key::Down: velocity.pitch = -kStep; break;
-            case Key::Left: velocity.roll = -kStep; break;
-            case Key::Right: velocity.roll = kStep; break;
-            case Key::Escape: g_running = false; break;
-            case Key::Char:
-                switch (event.ch) {
-                    case 'w': velocity.throttle = kStep; break;
-                    case 's': velocity.throttle = -kStep; break;
-                    case 'a': velocity.yaw = -kStep; break;
-                    case 'd': velocity.yaw = kStep; break;
-                    case ' ': velocity = {}; break;
-                    case 't': drone.takeoff(); break;
-                    case 'l': drone.land(); break;
-                    case 'x': drone.emergencyStop(); g_running = false; break;
-                    default: break;
-                }
-                break;
-            case Key::None: break;
+        const auto now = std::chrono::steady_clock::now();
+
+        // Drain every key event queued since the last tick, not just one.
+        // The OS's key auto-repeat can emit events faster than our tick
+        // interval, and handling only one per tick would let a backlog build
+        // up - which would then desync "current key state" from what's
+        // actually held, delaying the stop-on-release this loop exists for.
+        for (KeyEvent event = readKey(); event.key != Key::None; event = readKey()) {
+            switch (event.key) {
+                case Key::Up: velocity.pitch = kStep; axisActivity.pitch = now; break;
+                case Key::Down: velocity.pitch = -kStep; axisActivity.pitch = now; break;
+                case Key::Left: velocity.roll = -kStep; axisActivity.roll = now; break;
+                case Key::Right: velocity.roll = kStep; axisActivity.roll = now; break;
+                case Key::Escape: g_running = false; break;
+                case Key::Char:
+                    switch (event.ch) {
+                        case 'w': velocity.throttle = kStep; axisActivity.throttle = now; break;
+                        case 's': velocity.throttle = -kStep; axisActivity.throttle = now; break;
+                        case 'a': velocity.yaw = -kStep; axisActivity.yaw = now; break;
+                        case 'd': velocity.yaw = kStep; axisActivity.yaw = now; break;
+                        case ' ': velocity = {}; break;
+                        case 't': drone.takeoff(); break;
+                        case 'l': drone.land(); break;
+                        case 'x': drone.emergencyStop(); g_running = false; break;
+                        default: break;
+                    }
+                    break;
+                case Key::None: break;
+            }
         }
+
+        if (now - axisActivity.pitch > kHoldTimeout) velocity.pitch = 0;
+        if (now - axisActivity.roll > kHoldTimeout) velocity.roll = 0;
+        if (now - axisActivity.throttle > kHoldTimeout) velocity.throttle = 0;
+        if (now - axisActivity.yaw > kHoldTimeout) velocity.yaw = 0;
+
         drone.sendVelocity(velocity);
         std::this_thread::sleep_for(kTickInterval);
     }

@@ -17,14 +17,28 @@ option(BUILD_SLAM "Build the ORB-SLAM3 wrapper and dependent apps (requires thir
 add_subdirectory(common)
 add_subdirectory(core)
 add_subdirectory(drivers/tello)
+add_subdirectory(video)
+add_subdirectory(control)
 
-# Milestone (a): Tello connectivity + manual control. video/, slam/, control/
-# and their apps are added here as they're implemented in later milestones.
+# Milestone (a)/(b): no SLAM needed.
 add_subdirectory(apps/manual_control)
+add_subdirectory(apps/manual_control_gui)
+add_subdirectory(apps/video_view)
 
+# Milestones (c)-(f): mapping, localization and autonomous flight all need
+# ORB-SLAM3, which is a heavy build, so they are opt-in.
 if(BUILD_SLAM)
     add_subdirectory(third_party)
     add_subdirectory(slam)
+    add_subdirectory(apps/support)
+    add_subdirectory(apps/map_builder)
+    add_subdirectory(apps/relocalize)
+    add_subdirectory(apps/autonomous_mission)
+    if(BUILD_TOOLS)
+        add_subdirectory(apps/tools/calibrate_camera)
+        add_subdirectory(apps/tools/calibrate_scale)
+        add_subdirectory(apps/tools/trajectory_to_mission)
+    endif()
 endif()
 
 if(BUILD_TESTS)

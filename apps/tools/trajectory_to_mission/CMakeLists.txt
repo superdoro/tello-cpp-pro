@@ -1,0 +1,2 @@
+add_executable(trajectory_to_mission main.cpp)
+target_link_libraries(trajectory_to_mission PRIVATE control slam common)
