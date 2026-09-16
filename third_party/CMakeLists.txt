@@ -150,25 +150,46 @@ set_target_properties(orb_g2o PROPERTIES
 set(ORB_SLAM3_PATCHED_DIR ${CMAKE_CURRENT_BINARY_DIR}/orb_slam3_patched)
 file(MAKE_DIRECTORY ${ORB_SLAM3_PATCHED_DIR})
 
+# Applies one exact-text replacement, failing the configure if the anchor is
+# gone. Failing loudly is the point: a silently-skipped patch would build a
+# library that crashes at runtime for reasons nothing in this file explains.
+macro(orb_slam3_patch var what find replace)
+    string(FIND "${${var}}" "${find}" _orb_found)
+    if(_orb_found EQUAL -1)
+        message(FATAL_ERROR
+            "Cannot apply the '${what}' fix: its anchor is no longer present in the "
+            "pinned ORB-SLAM3 sources. Re-check whether the bug is still there "
+            "before dropping the patch.")
+    endif()
+    string(REPLACE "${find}" "${replace}" ${var} "${${var}}")
+endmacro()
+
+# Staged first so the compiled copy is only touched when it actually changed,
+# instead of forcing a rebuild on every configure.
+macro(orb_slam3_write_patched name var)
+    file(WRITE ${ORB_SLAM3_PATCHED_DIR}/${name}.staged "${${var}}")
+    configure_file(${ORB_SLAM3_PATCHED_DIR}/${name}.staged
+                   ${ORB_SLAM3_PATCHED_DIR}/${name} COPYONLY)
+endmacro()
+
+# --- Map.cc: iterator invalidation while saving ----------------------------
 file(READ ${ORB_SLAM3_DIR}/src/Map.cc ORB_SLAM3_MAP_SOURCE)
 
-# Loop 1: strips observations that belong to other maps. EraseObservation()
-# can bad-flag the point, which erases it from mspMapPoints mid-iteration.
-set(ORB_SLAM3_MAP_FIND_1 [==[    int nMPWithoutObs = 0;
-    for(MapPoint* pMPi : mspMapPoints)]==])
-set(ORB_SLAM3_MAP_REPLACE_1 [==[    int nMPWithoutObs = 0;
+orb_slam3_patch(ORB_SLAM3_MAP_SOURCE "Map::PreSave observation strip"
+[==[    int nMPWithoutObs = 0;
+    for(MapPoint* pMPi : mspMapPoints)]==]
+[==[    int nMPWithoutObs = 0;
     // PATCHED by third_party/CMakeLists.txt: this loop body can erase from
     // mspMapPoints via MapPoint::SetBadFlag(), so iterate a snapshot.
     const std::vector<MapPoint*> vpSnapshotForObservations(
         mspMapPoints.begin(), mspMapPoints.end());
     for(MapPoint* pMPi : vpSnapshotForObservations)]==])
 
-# Loop 2: MapPoint::PreSave() itself calls EraseObservation(), same chain.
-# Its own snapshot (taken after loop 1) keeps the original semantics exactly.
-set(ORB_SLAM3_MAP_FIND_2 [==[    // Backup of MapPoints
+orb_slam3_patch(ORB_SLAM3_MAP_SOURCE "Map::PreSave map point backup"
+[==[    // Backup of MapPoints
     mvpBackupMapPoints.clear();
-    for(MapPoint* pMPi : mspMapPoints)]==])
-set(ORB_SLAM3_MAP_REPLACE_2 [==[    // Backup of MapPoints
+    for(MapPoint* pMPi : mspMapPoints)]==]
+[==[    // Backup of MapPoints
     mvpBackupMapPoints.clear();
     // PATCHED by third_party/CMakeLists.txt: MapPoint::PreSave() can erase
     // from mspMapPoints via SetBadFlag(), so iterate a snapshot.
@@ -176,24 +197,137 @@ set(ORB_SLAM3_MAP_REPLACE_2 [==[    // Backup of MapPoints
         mspMapPoints.begin(), mspMapPoints.end());
     for(MapPoint* pMPi : vpSnapshotForBackup)]==])
 
-foreach(index RANGE 1 2)
-    string(FIND "${ORB_SLAM3_MAP_SOURCE}" "${ORB_SLAM3_MAP_FIND_${index}}" found)
-    if(found EQUAL -1)
-        message(FATAL_ERROR
-            "Cannot apply the Map::PreSave fix (pattern ${index} not found in "
-            "${ORB_SLAM3_DIR}/src/Map.cc). The pinned ORB-SLAM3 commit has "
-            "changed; re-check whether the iterator-invalidation bug is still "
-            "present before removing this patch.")
-    endif()
-    string(REPLACE "${ORB_SLAM3_MAP_FIND_${index}}" "${ORB_SLAM3_MAP_REPLACE_${index}}"
-           ORB_SLAM3_MAP_SOURCE "${ORB_SLAM3_MAP_SOURCE}")
-endforeach()
+orb_slam3_write_patched(Map.cc ORB_SLAM3_MAP_SOURCE)
 
-# Via a staging file so the compiled copy is only touched when it actually
-# changes, instead of forcing a rebuild on every configure.
-file(WRITE ${ORB_SLAM3_PATCHED_DIR}/Map.cc.staged "${ORB_SLAM3_MAP_SOURCE}")
-configure_file(${ORB_SLAM3_PATCHED_DIR}/Map.cc.staged
-               ${ORB_SLAM3_PATCHED_DIR}/Map.cc COPYONLY)
+# --- KeyFrame.cc / MapPoint.cc: dangling references while LOADING ----------
+#
+# A keyframe culled during mapping leaves its id behind in other keyframes'
+# covisibility weights, children, loop and merge edges, and in map points'
+# reference-keyframe field. PreSave writes those ids out unchanged, and
+# PostLoad resolves them with `mpKFid[id]` - std::map::operator[], which
+# DEFAULT-CONSTRUCTS a null KeyFrame* for a missing id and inserts it.
+#
+# The null then goes straight into the covisibility graph, and
+# KeyFrame::UpdateBestCovisibles() - at the end of the very same function -
+# calls isBad() on it. Loading such a map segfaults inside the System
+# constructor, after printing "ERROR: MP without KF reference <id>".
+#
+# Resolving with find() and skipping what is missing repairs maps that are
+# already on disk, which matters: the alternative is re-flying and rebuilding
+# every affected map.
+file(READ ${ORB_SLAM3_DIR}/src/KeyFrame.cc ORB_SLAM3_KEYFRAME_SOURCE)
+
+orb_slam3_patch(ORB_SLAM3_KEYFRAME_SOURCE "KeyFrame::PostLoad covisibility"
+[==[        KeyFrame* pKFi = mpKFid[it->first];
+        mConnectedKeyFrameWeights[pKFi] = it->second;]==]
+[==[        // PATCHED by third_party/CMakeLists.txt: operator[] would insert a
+        // null for a culled keyframe's id, and UpdateBestCovisibles() below
+        // dereferences every entry in this graph.
+        map<long unsigned int, KeyFrame*>::const_iterator itKF = mpKFid.find(it->first);
+        if(itKF == mpKFid.end() || !itKF->second)
+            continue;
+        mConnectedKeyFrameWeights[itKF->second] = it->second;]==])
+
+orb_slam3_patch(ORB_SLAM3_KEYFRAME_SOURCE "KeyFrame::PostLoad parent"
+[==[    if(mBackupParentId>=0)
+        mpParent = mpKFid[mBackupParentId];]==]
+[==[    if(mBackupParentId>=0)
+    {
+        // PATCHED: a null parent is a state the spanning tree already
+        // understands - it is what a root has. A dangling one is not.
+        map<long unsigned int, KeyFrame*>::const_iterator itParent = mpKFid.find(mBackupParentId);
+        if(itParent != mpKFid.end())
+            mpParent = itParent->second;
+    }]==])
+
+orb_slam3_patch(ORB_SLAM3_KEYFRAME_SOURCE "KeyFrame::PostLoad children"
+[==[        mspChildrens.insert(mpKFid[*it]);]==]
+[==[        // PATCHED: skip ids no longer in the map rather than inserting null.
+        map<long unsigned int, KeyFrame*>::const_iterator itChild = mpKFid.find(*it);
+        if(itChild != mpKFid.end() && itChild->second)
+            mspChildrens.insert(itChild->second);]==])
+
+orb_slam3_patch(ORB_SLAM3_KEYFRAME_SOURCE "KeyFrame::PostLoad loop edges"
+[==[        mspLoopEdges.insert(mpKFid[*it]);]==]
+[==[        // PATCHED: skip ids no longer in the map rather than inserting null.
+        map<long unsigned int, KeyFrame*>::const_iterator itLoop = mpKFid.find(*it);
+        if(itLoop != mpKFid.end() && itLoop->second)
+            mspLoopEdges.insert(itLoop->second);]==])
+
+orb_slam3_patch(ORB_SLAM3_KEYFRAME_SOURCE "KeyFrame::PostLoad merge edges"
+[==[        mspMergeEdges.insert(mpKFid[*it]);]==]
+[==[        // PATCHED: skip ids no longer in the map rather than inserting null.
+        map<long unsigned int, KeyFrame*>::const_iterator itMerge = mpKFid.find(*it);
+        if(itMerge != mpKFid.end() && itMerge->second)
+            mspMergeEdges.insert(itMerge->second);]==])
+
+orb_slam3_patch(ORB_SLAM3_KEYFRAME_SOURCE "KeyFrame::PostLoad inertial links"
+[==[    if(mBackupPrevKFId != -1)
+    {
+        mPrevKF = mpKFid[mBackupPrevKFId];
+    }
+    if(mBackupNextKFId != -1)
+    {
+        mNextKF = mpKFid[mBackupNextKFId];
+    }]==]
+[==[    // PATCHED: find() rather than operator[], for the same reason as above.
+    // Unused on a monocular Tello, but a null here would be just as fatal.
+    if(mBackupPrevKFId != -1)
+    {
+        map<long unsigned int, KeyFrame*>::const_iterator itPrev = mpKFid.find(mBackupPrevKFId);
+        if(itPrev != mpKFid.end())
+            mPrevKF = itPrev->second;
+    }
+    if(mBackupNextKFId != -1)
+    {
+        map<long unsigned int, KeyFrame*>::const_iterator itNext = mpKFid.find(mBackupNextKFId);
+        if(itNext != mpKFid.end())
+            mNextKF = itNext->second;
+    }]==])
+
+orb_slam3_write_patched(KeyFrame.cc ORB_SLAM3_KEYFRAME_SOURCE)
+
+file(READ ${ORB_SLAM3_DIR}/src/MapPoint.cc ORB_SLAM3_MAPPOINT_SOURCE)
+
+orb_slam3_patch(ORB_SLAM3_MAPPOINT_SOURCE "MapPoint::PostLoad reference keyframe"
+[==[    mpRefKF = mpKFid[mBackupRefKFId];
+    if(!mpRefKF)
+    {
+        cout << "ERROR: MP without KF reference " << mBackupRefKFId << "; Num obs: " << nObs << endl;
+    }]==]
+[==[    // PATCHED by third_party/CMakeLists.txt: find() rather than operator[],
+    // which would insert a null into mpKFid - a map shared with every
+    // KeyFrame::PostLoad still to run, so the null would later be found
+    // rather than missed. Choosing a replacement is deferred to the end of
+    // this function, where the observations have been rebuilt.
+    {
+        map<long unsigned int, KeyFrame*>::const_iterator itRef = mpKFid.find(mBackupRefKFId);
+        mpRefKF = itRef != mpKFid.end() ? itRef->second : static_cast<KeyFrame*>(NULL);
+    }]==])
+
+orb_slam3_patch(ORB_SLAM3_MAPPOINT_SOURCE "MapPoint::PostLoad observations"
+[==[        KeyFrame* pKFi = mpKFid[it->first];]==]
+[==[        // PATCHED: find(), so a stale id does not insert a null that a
+        // later KeyFrame::PostLoad would then look up "successfully".
+        map<long unsigned int, KeyFrame*>::const_iterator itObs = mpKFid.find(it->first);
+        KeyFrame* pKFi = itObs != mpKFid.end() ? itObs->second : static_cast<KeyFrame*>(NULL);]==])
+
+orb_slam3_patch(ORB_SLAM3_MAPPOINT_SOURCE "MapPoint::PostLoad reference repair"
+[==[    mBackupObservationsId1.clear();
+    mBackupObservationsId2.clear();
+}]==]
+[==[    // PATCHED: adopt a surviving observer as the reference keyframe. A null
+    // mpRefKF is dereferenced by UpdateNormalAndDepth() and by tracking; a
+    // point that still has observations has no reason to be left anchorless
+    // just because the keyframe it was born in was culled.
+    if(!mpRefKF && !mObservations.empty())
+        mpRefKF = mObservations.begin()->first;
+
+    mBackupObservationsId1.clear();
+    mBackupObservationsId2.clear();
+}]==])
+
+orb_slam3_write_patched(MapPoint.cc ORB_SLAM3_MAPPOINT_SOURCE)
 
 # ------------------------------------------------------------ ORB-SLAM3 -----
 add_library(orb_slam3 STATIC
@@ -205,8 +339,8 @@ add_library(orb_slam3 STATIC
     ${ORB_SLAM3_DIR}/src/ORBmatcher.cc
     ${ORB_SLAM3_DIR}/src/FrameDrawer.cc
     ${ORB_SLAM3_DIR}/src/Converter.cc
-    ${ORB_SLAM3_DIR}/src/MapPoint.cc
-    ${ORB_SLAM3_DIR}/src/KeyFrame.cc
+    ${ORB_SLAM3_PATCHED_DIR}/MapPoint.cc   # patched copy - see above
+    ${ORB_SLAM3_PATCHED_DIR}/KeyFrame.cc   # patched copy - see above
     ${ORB_SLAM3_DIR}/src/Atlas.cc
     ${ORB_SLAM3_PATCHED_DIR}/Map.cc   # patched copy - see above
     ${ORB_SLAM3_DIR}/src/MapDrawer.cc
