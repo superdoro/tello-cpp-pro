@@ -24,3 +24,6 @@ tests/data/*.avi
 tests/data/synthetic_truth.txt
 tests/data/synthetic_camera.yaml
 config/mission_synthetic.yaml
+
+# Remembered choices from scripts/tello.sh
+.tello-launcher.conf
