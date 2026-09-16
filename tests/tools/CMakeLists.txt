@@ -4,6 +4,12 @@ add_executable(make_synthetic_video make_synthetic_video.cpp)
 target_link_libraries(make_synthetic_video PRIVATE common opencv_core opencv_imgproc
                                                     opencv_videoio opencv_calib3d)
 
+# Drives the control stack from recorded poses, with no SLAM in the loop, so
+# its output is deterministic and two runs are directly comparable. Needs no
+# SLAM build at all.
+add_executable(replay_flight replay_flight.cpp)
+target_link_libraries(replay_flight PRIVATE common control)
+
 # Only meaningful alongside the SLAM pipeline it evaluates.
 if(BUILD_SLAM)
     find_package(Eigen3 3.1.0 REQUIRED)

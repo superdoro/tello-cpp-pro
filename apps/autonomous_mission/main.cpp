@@ -63,6 +63,16 @@ void printUsage() {
         "  --yaw-gain <n>        yaw stick per radian of heading error  [90]\n"
         "  --max-yaw <n>         cap on yaw stick units  [60]\n"
         "  --stop-at-waypoints   settle at every waypoint instead of flying through\n"
+        "  --repeat <n>          fly the route this many times  [1]\n"
+        "  --reverse             fly the route backwards. The waypoint order reverses\n"
+        "                        but the recorded headings do not, so the camera keeps\n"
+        "                        facing the views the map was built from and the drone\n"
+        "                        flies backwards.\n"
+        "  --reverse-headings    also turn the drone around on a reversed pass. Only if\n"
+        "                        the space was mapped in both directions.\n"
+        "  --ping-pong           alternate direction each pass: out, back, out, back.\n"
+        "                        The only safe way to repeat a route that does not\n"
+        "                        return to where it started.\n"
         "  --relocalize-on-ground  bootstrap before takeoff instead of hovering\n"
         "                          (needs someone to carry the drone around)\n"
         "  --bootstrap-timeout <s>  land if not localized in this long  [90]\n"
@@ -110,6 +120,10 @@ int main(int argc, char** argv) {
     control::Mission mission;
     if (!control::loadMission(missionPath, mission)) return 1;
     if (args.has("stop-at-waypoints")) mission.config.continuous = false;
+    mission.config.passes = std::max(args.getInt("repeat", mission.config.passes), 1);
+    if (args.has("reverse")) mission.config.reverse = true;
+    if (args.has("reverse-headings")) mission.config.reverse_headings = true;
+    if (args.has("ping-pong")) mission.config.ping_pong = true;
     if (const double lookahead = args.getDouble("lookahead", 0.0); lookahead > 0.0) {
         mission.config.lookahead_m = static_cast<float>(lookahead);
     }
@@ -395,6 +409,11 @@ int main(int argc, char** argv) {
             hud += std::string("  ") + statusName(status) + "  wp " +
                    std::to_string(planner.currentIndex() + 1) + "/" +
                    std::to_string(planner.waypointCount());
+            if (planner.totalPasses() > 1 || planner.passIsReversed()) {
+                hud += "  pass " + std::to_string(planner.currentPass()) + "/" +
+                       std::to_string(planner.totalPasses()) +
+                       (planner.passIsReversed() ? " rev" : "");
+            }
 
             if (status == control::MissionStatus::Complete ||
                 status == control::MissionStatus::Aborted) {

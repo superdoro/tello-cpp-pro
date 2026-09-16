@@ -38,6 +38,37 @@ bool saveMission(const std::string& path, const Mission& mission) {
     fs << "corner_brake_time_s" << mission.config.corner_brake_time_s;
     fs << "corner_full_slow_rad" << mission.config.corner_full_slow_rad;
     fs << "corner_min_cruise_scale" << mission.config.corner_min_cruise_scale;
+    fs << "passes" << mission.config.passes;
+    fs << "reverse" << (mission.config.reverse ? 1 : 0);
+    fs << "reverse_headings" << (mission.config.reverse_headings ? 1 : 0);
+    fs << "ping_pong" << (mission.config.ping_pong ? 1 : 0);
+
+    // Obstacle avoidance is mission policy: how close this route lets the
+    // drone get to things. The sensing side lives in config/perception.yaml.
+    const AvoidanceConfig& avoid = mission.config.avoidance;
+    fs << "avoid_enabled" << (avoid.enabled ? 1 : 0);
+    fs << "avoid_enable_slow" << (avoid.enable_slow ? 1 : 0);
+    fs << "avoid_enable_steer" << (avoid.enable_steer ? 1 : 0);
+    fs << "avoid_enable_brake" << (avoid.enable_brake ? 1 : 0);
+    fs << "avoid_brake_distance_m" << avoid.brake_distance_m;
+    fs << "avoid_steer_distance_m" << avoid.steer_distance_m;
+    fs << "avoid_slow_distance_m" << avoid.slow_distance_m;
+    fs << "avoid_corridor_radius_m" << avoid.corridor_radius_m;
+    fs << "avoid_corridor_radius_growth" << avoid.corridor_radius_growth;
+    fs << "avoid_min_cruise_scale" << avoid.min_cruise_scale;
+    fs << "avoid_max_lateral_offset_m" << avoid.max_lateral_offset_m;
+    fs << "avoid_max_vertical_offset_m" << avoid.max_vertical_offset_m;
+    fs << "avoid_offset_rate_m_per_s" << avoid.offset_rate_m_per_s;
+    fs << "avoid_exit_margin_m" << avoid.exit_margin_m;
+    fs << "avoid_min_state_dwell_ms" << millis(avoid.min_state_dwell);
+    fs << "avoid_commit_time_ms" << millis(avoid.commit_time);
+    fs << "avoid_max_snapshot_age_ms" << millis(avoid.max_snapshot_age);
+    fs << "avoid_startup_grace_ms" << millis(avoid.startup_grace);
+    fs << "avoid_min_confidence" << avoid.min_confidence;
+    fs << "avoid_steer_min_confidence" << avoid.steer_min_confidence;
+    fs << "avoid_degraded_cruise_scale" << avoid.degraded_cruise_scale;
+    fs << "avoid_require_perception" << (avoid.require_perception ? 1 : 0);
+    fs << "avoid_blocked_abort_ms" << millis(avoid.blocked_abort_after);
 
     fs << "waypoints" << "[";
     for (const auto& waypoint : mission.waypoints) {
@@ -100,6 +131,50 @@ bool loadMission(const std::string& path, Mission& mission) {
     mission.config.corner_brake_time_s = readFloat("corner_brake_time_s", 1.5f);
     mission.config.corner_full_slow_rad = readFloat("corner_full_slow_rad", 1.2f);
     mission.config.corner_min_cruise_scale = readFloat("corner_min_cruise_scale", 0.25f);
+    mission.config.passes = readInt("passes", 1);
+    mission.config.reverse = readInt("reverse", 0) != 0;
+    mission.config.reverse_headings = readInt("reverse_headings", 0) != 0;
+    mission.config.ping_pong = readInt("ping_pong", 0) != 0;
+
+    // Every avoidance key falls back to the struct's own default, so a route
+    // authored before this feature existed loads with avoidance off and flies
+    // exactly as it always did.
+    const AvoidanceConfig defaults;
+    AvoidanceConfig& avoid = mission.config.avoidance;
+    const auto readMillis = [&readInt](const char* key, std::chrono::milliseconds fallback) {
+        return std::chrono::milliseconds(readInt(key, static_cast<int>(fallback.count())));
+    };
+    avoid.enabled = readInt("avoid_enabled", defaults.enabled ? 1 : 0) != 0;
+    avoid.enable_slow = readInt("avoid_enable_slow", defaults.enable_slow ? 1 : 0) != 0;
+    avoid.enable_steer = readInt("avoid_enable_steer", defaults.enable_steer ? 1 : 0) != 0;
+    avoid.enable_brake = readInt("avoid_enable_brake", defaults.enable_brake ? 1 : 0) != 0;
+    avoid.brake_distance_m = readFloat("avoid_brake_distance_m", defaults.brake_distance_m);
+    avoid.steer_distance_m = readFloat("avoid_steer_distance_m", defaults.steer_distance_m);
+    avoid.slow_distance_m = readFloat("avoid_slow_distance_m", defaults.slow_distance_m);
+    avoid.corridor_radius_m = readFloat("avoid_corridor_radius_m", defaults.corridor_radius_m);
+    avoid.corridor_radius_growth =
+        readFloat("avoid_corridor_radius_growth", defaults.corridor_radius_growth);
+    avoid.min_cruise_scale = readFloat("avoid_min_cruise_scale", defaults.min_cruise_scale);
+    avoid.max_lateral_offset_m =
+        readFloat("avoid_max_lateral_offset_m", defaults.max_lateral_offset_m);
+    avoid.max_vertical_offset_m =
+        readFloat("avoid_max_vertical_offset_m", defaults.max_vertical_offset_m);
+    avoid.offset_rate_m_per_s =
+        readFloat("avoid_offset_rate_m_per_s", defaults.offset_rate_m_per_s);
+    avoid.exit_margin_m = readFloat("avoid_exit_margin_m", defaults.exit_margin_m);
+    avoid.min_state_dwell = readMillis("avoid_min_state_dwell_ms", defaults.min_state_dwell);
+    avoid.commit_time = readMillis("avoid_commit_time_ms", defaults.commit_time);
+    avoid.max_snapshot_age = readMillis("avoid_max_snapshot_age_ms", defaults.max_snapshot_age);
+    avoid.startup_grace = readMillis("avoid_startup_grace_ms", defaults.startup_grace);
+    avoid.min_confidence = readFloat("avoid_min_confidence", defaults.min_confidence);
+    avoid.steer_min_confidence =
+        readFloat("avoid_steer_min_confidence", defaults.steer_min_confidence);
+    avoid.degraded_cruise_scale =
+        readFloat("avoid_degraded_cruise_scale", defaults.degraded_cruise_scale);
+    avoid.require_perception =
+        readInt("avoid_require_perception", defaults.require_perception ? 1 : 0) != 0;
+    avoid.blocked_abort_after =
+        readMillis("avoid_blocked_abort_ms", defaults.blocked_abort_after);
 
     const cv::FileNode waypoints = fs["waypoints"];
     if (waypoints.empty() || !waypoints.isSeq()) {

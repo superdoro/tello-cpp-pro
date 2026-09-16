@@ -267,6 +267,26 @@ space, then live with the drone on the floor.
 | `--max-yaw <n>` | `60` | Cap on yaw stick units. |
 | `--stop-at-waypoints` | off | Settle at every waypoint instead of flying through. Slower and stuttery; kept for comparison. |
 
+**Repeating and reversing**
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--repeat <n>` | `1` | Fly the route this many times. |
+| `--reverse` | off | Fly the route backwards. The waypoint order reverses but the recorded headings do not, so the camera keeps facing the views the map was built from and the drone flies backwards. |
+| `--reverse-headings` | off | Also turn the drone around on a reversed pass, so it faces the way it is travelling. Only use this if the space was mapped in both directions - ORB features are viewpoint-dependent, and a corridor seen from the far end is a different scene as far as the map is concerned. |
+| `--ping-pong` | off | Alternate direction on each pass: out, back, out, back. **The only safe way to repeat a route that does not return to where it started** - plain repetition finishes at the far end and then sets course straight for the first waypoint, along a line that owes nothing to the mapped route. The planner warns if you repeat an open route without it. |
+
+```sh
+# Three laps of a closed loop
+--repeat 3
+
+# Out and back, twice each way
+--repeat 4 --ping-pong
+
+# One pass, backwards along the mapped route
+--reverse
+```
+
 **Startup and safety**
 
 | Option | Default | Meaning |
@@ -437,8 +457,9 @@ and vocabulary produced the map).
 waypoint list it carries `geofence_*`, `max_tracking_loss_ms`,
 `min_confidence`, `continuous`, `lookahead_m`, `lookahead_time_s`,
 `lookahead_max_m`, `lookahead_corner_limit_rad`, `corner_brake_time_s`,
-`corner_full_slow_rad` and `corner_min_cruise_scale`. Command-line flags
-override these per flight.
+`corner_full_slow_rad`, `corner_min_cruise_scale`, `passes`, `reverse`,
+`reverse_headings` and `ping_pong`. Command-line flags override these per
+flight.
 
 ---
 

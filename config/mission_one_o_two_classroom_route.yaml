@@ -1,0 +1,122 @@
+%YAML:1.0
+---
+name: "route_from_maps/one_o_two_classroom_route_trajectory.txt"
+map_path: "maps/one_o_two_classroom_route.osa"
+geofence_max_radius_m: 4.6144566535949707
+geofence_max_altitude_m: 2.9853408336639404
+geofence_min_altitude_m: -3.3366739749908447
+max_tracking_loss_ms: 4000
+min_confidence: 0.15000000596046448
+continuous: 1
+lookahead_m: 1.2000000476837158
+lookahead_corner_limit_rad: 0.60000002384185791
+lookahead_time_s: 0.5
+lookahead_max_m: 3.
+corner_brake_time_s: 1.5
+corner_full_slow_rad: 1.2000000476837158
+corner_min_cruise_scale: 0.25
+passes: 1
+reverse: 0
+reverse_headings: 0
+ping_pong: 0
+avoid_enabled: 0
+avoid_enable_slow: 1
+avoid_enable_steer: 1
+avoid_enable_brake: 1
+avoid_brake_distance_m: 1.
+avoid_steer_distance_m: 2.2000000476837158
+avoid_slow_distance_m: 4.
+avoid_corridor_radius_m: 0.44999998807907104
+avoid_corridor_radius_growth: 0.15000000596046448
+avoid_min_cruise_scale: 0.15000000596046448
+avoid_max_lateral_offset_m: 0.80000001192092896
+avoid_max_vertical_offset_m: 0.5
+avoid_offset_rate_m_per_s: 0.60000002384185791
+avoid_exit_margin_m: 0.34999999403953552
+avoid_min_state_dwell_ms: 400
+avoid_commit_time_ms: 1500
+avoid_max_snapshot_age_ms: 500
+avoid_startup_grace_ms: 5000
+avoid_min_confidence: 0.25
+avoid_steer_min_confidence: 0.60000002384185791
+avoid_degraded_cruise_scale: 0.60000002384185791
+avoid_require_perception: 0
+avoid_blocked_abort_ms: 8000
+waypoints:
+   -
+      label: kf_183
+      x: -0.77693897485733032
+      y: 0.19632090628147125
+      z: -0.48770689964294434
+      heading_rad: -1.0765880346298218
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_207
+      x: -0.071038797497749329
+      y: 0.014659100212156773
+      z: -0.14779339730739594
+      heading_rad: -0.64711374044418335
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_244
+      x: -0.84860479831695557
+      y: 0.14228169620037079
+      z: 0.10477279871702194
+      heading_rad: 2.0319375991821289
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_265
+      x: -1.5608168840408325
+      y: 0.33667388558387756
+      z: -0.23868650197982788
+      heading_rad: 3.003619909286499
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_294
+      x: -0.82037132978439331
+      y: 0.2958579957485199
+      z: -0.54514598846435547
+      heading_rad: -1.0537830591201782
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_324
+      x: -0.12724809348583221
+      y: 0.05316530168056488
+      z: -0.19269309937953949
+      heading_rad: -0.96602094173431396
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_363
+      x: -0.99437242746353149
+      y: 0.18069550395011902
+      z: 0.070641800761222839
+      heading_rad: 2.0527327060699463
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000

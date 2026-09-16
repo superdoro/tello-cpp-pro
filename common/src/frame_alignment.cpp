@@ -1,8 +1,8 @@
-#include "control/frame_alignment.hpp"
+#include "common/frame_alignment.hpp"
 
 #include <cmath>
 
-namespace control {
+namespace common {
 namespace {
 
 common::Vector3 cross(const common::Vector3& a, const common::Vector3& b) {
@@ -124,4 +124,4 @@ float FrameAlignment::headingInMap(const common::Quaternion& cameraInMap) const 
     return std::atan2(dot(flat, left), dot(flat, reference));
 }
 
-} // namespace control
+} // namespace common

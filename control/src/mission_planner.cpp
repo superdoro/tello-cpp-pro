@@ -11,6 +11,9 @@ namespace control {
 void MissionPlanner::loadMission(Mission mission) {
     mission_ = std::move(mission);
     current_target_.reset();
+    pass_ = 1;
+    pass_reversed_ = false;
+    buildRouteForPass(pass_);
     status_ = MissionStatus::Idle;
     index_ = 0;
     abort_reason_.clear();
@@ -18,12 +21,77 @@ void MissionPlanner::loadMission(Mission mission) {
     tracking_lost_ = false;
 }
 
+void MissionPlanner::buildRouteForPass(int pass) {
+    const auto& config = mission_.config;
+    // Pass 1 runs in the mission's own direction; ping-pong flips every pass
+    // after that.
+    pass_reversed_ = config.reverse;
+    if (config.ping_pong && ((pass - 1) % 2) == 1) {
+        pass_reversed_ = !pass_reversed_;
+    }
+
+    route_ = mission_.waypoints;
+    if (!pass_reversed_) return;
+
+    std::reverse(route_.begin(), route_.end());
+    if (config.reverse_headings) {
+        for (Waypoint& waypoint : route_) {
+            waypoint.heading_rad = wrapAngle(waypoint.heading_rad + static_cast<float>(M_PI));
+        }
+    }
+}
+
+void MissionPlanner::finishPass(std::chrono::steady_clock::time_point now) {
+    const int passes = std::max(mission_.config.passes, 1);
+    if (pass_ >= passes) {
+        status_ = MissionStatus::Complete;
+        common::logInfo("MissionPlanner", "mission complete");
+        return;
+    }
+
+    ++pass_;
+    buildRouteForPass(pass_);
+    index_ = 0;
+    inside_tolerance_ = false;
+    current_target_.reset();
+    waypoint_started_at_ = now;
+    // Speed history belongs to the pass that just ended; the drone is about
+    // to turn around or jump back to the start.
+    have_last_pose_ = false;
+    speed_mps_ = 0.0f;
+    cruise_scale_ = 1.0f;
+
+    common::logInfo("MissionPlanner",
+                     "pass " + std::to_string(pass_) + "/" + std::to_string(passes) +
+                         (pass_reversed_ ? " (reversed)" : " (forward)"));
+}
+
 void MissionPlanner::start() {
     current_target_.reset();
-    if (mission_.waypoints.empty()) {
+    pass_ = 1;
+    buildRouteForPass(pass_);
+    if (route_.empty()) {
         abort("mission has no waypoints");
         return;
     }
+
+    const int passes = std::max(mission_.config.passes, 1);
+    if (passes > 1 && !mission_.config.ping_pong && route_.size() > 1) {
+        // Repeating a route that does not come back to its start means
+        // finishing at the far end and then setting course straight for the
+        // first waypoint - a line that owes nothing to the mapped route.
+        const float gap = distance(route_.front().position, route_.back().position);
+        const float spacing = distance(route_.front().position, route_[1].position);
+        if (gap > std::max(3.0f * spacing, 2.0f)) {
+            common::logWarn("MissionPlanner",
+                             "this route ends " + std::to_string(static_cast<int>(gap)) +
+                                 "m from where it starts, and passes>1 without ping-pong will "
+                                 "fly straight back to the first waypoint between passes - "
+                                 "through whatever is in the way. Use ping-pong for an open "
+                                 "route.");
+        }
+    }
+
     status_ = MissionStatus::Running;
     index_ = 0;
     inside_tolerance_ = false;
@@ -34,11 +102,13 @@ void MissionPlanner::start() {
     waypoint_started_at_ = std::chrono::steady_clock::now();
     common::logInfo("MissionPlanner",
                      "mission '" + mission_.name + "' started, " +
-                         std::to_string(mission_.waypoints.size()) + " waypoints");
+                         std::to_string(route_.size()) + " waypoints" +
+                         (passes > 1 ? ", " + std::to_string(passes) + " passes" : "") +
+                         (pass_reversed_ ? " (reversed)" : ""));
 }
 
 void MissionPlanner::resume() {
-    if (mission_.waypoints.empty() || index_ >= mission_.waypoints.size()) {
+    if (route_.empty() || index_ >= route_.size()) {
         abort("nothing left to resume");
         return;
     }
@@ -50,7 +120,7 @@ void MissionPlanner::resume() {
     waypoint_started_at_ = std::chrono::steady_clock::now();
     common::logInfo("MissionPlanner",
                      "resumed at waypoint " + std::to_string(index_ + 1) + "/" +
-                         std::to_string(mission_.waypoints.size()));
+                         std::to_string(route_.size()));
 }
 
 void MissionPlanner::abort(const std::string& reason) {
@@ -62,9 +132,9 @@ void MissionPlanner::abort(const std::string& reason) {
 
 std::optional<Waypoint> MissionPlanner::currentTarget() const {
     if (status_ != MissionStatus::Running && status_ != MissionStatus::Holding) return std::nullopt;
-    if (index_ >= mission_.waypoints.size()) return std::nullopt;
+    if (index_ >= route_.size()) return std::nullopt;
     if (current_target_.has_value()) return current_target_;
-    return mission_.waypoints[index_];
+    return route_[index_];
 }
 
 namespace {
@@ -118,7 +188,7 @@ void MissionPlanner::updateSpeed(const common::Vector3& position,
 }
 
 void MissionPlanner::updatePathOffset(const common::Vector3& position) {
-    const auto& waypoints = mission_.waypoints;
+    const auto& waypoints = route_;
     path_offset_ = {0.0f, 0.0f, 0.0f};
     if (waypoints.size() < 2) return;
 
@@ -152,7 +222,7 @@ void MissionPlanner::updatePathOffset(const common::Vector3& position) {
 
 void MissionPlanner::updateCruiseScale(const common::Vector3& from) {
     const auto& config = mission_.config;
-    const auto& waypoints = mission_.waypoints;
+    const auto& waypoints = route_;
 
     cruise_scale_ = 1.0f;
     if (index_ + 1 >= waypoints.size()) return;
@@ -195,7 +265,7 @@ void MissionPlanner::updateCruiseScale(const common::Vector3& from) {
 }
 
 Waypoint MissionPlanner::lookaheadTarget(const common::Vector3& from) const {
-    const auto& waypoints = mission_.waypoints;
+    const auto& waypoints = route_;
     float remaining = std::max(effectiveLookahead(), 0.01f);
     common::Vector3 previous = from;
 
@@ -254,7 +324,7 @@ Waypoint MissionPlanner::lookaheadTarget(const common::Vector3& from) const {
 
 bool MissionPlanner::advancePassedWaypoints(const common::Vector3& position,
                                              std::chrono::steady_clock::time_point now) {
-    const auto& waypoints = mission_.waypoints;
+    const auto& waypoints = route_;
     const std::size_t before = index_;
 
     while (index_ + 1 < waypoints.size()) {
@@ -348,8 +418,8 @@ void MissionPlanner::onPoseUpdate(const common::PoseEstimate& pose,
         return;
     }
 
-    if (index_ >= mission_.waypoints.size()) {
-        status_ = MissionStatus::Complete;
+    if (index_ >= route_.size()) {
+        finishPass(now);
         return;
     }
 
@@ -359,25 +429,25 @@ void MissionPlanner::onPoseUpdate(const common::PoseEstimate& pose,
     if (mission_.config.continuous && !onFinalWaypoint()) {
         advancePassedWaypoints(pose.pose.position, now);
         if (onFinalWaypoint()) {
-            current_target_ = mission_.waypoints[index_];
+            current_target_ = route_[index_];
         } else {
             current_target_ = lookaheadTarget(pose.pose.position);
             updateCruiseScale(pose.pose.position);
             updatePathOffset(pose.pose.position);
             // The waypoint timeout still applies, so a drone stuck against
             // an obstacle does not grind forward forever.
-            if (now - waypoint_started_at_ > mission_.waypoints[index_].timeout) {
+            if (now - waypoint_started_at_ > route_[index_].timeout) {
                 abort("no progress along the route for " +
-                      std::to_string(mission_.waypoints[index_].timeout.count() / 1000) +
+                      std::to_string(route_[index_].timeout.count() / 1000) +
                       "s while heading for waypoint " + std::to_string(index_ + 1));
             }
             return;
         }
     } else {
-        current_target_ = mission_.waypoints[index_];
+        current_target_ = route_[index_];
     }
 
-    const Waypoint& target = mission_.waypoints[index_];
+    const Waypoint& target = route_[index_];
 
     const float positionError = distance(pose.pose.position, target.position);
     bool withinTolerance = positionError <= target.position_tolerance_m;
@@ -398,9 +468,8 @@ void MissionPlanner::onPoseUpdate(const common::PoseEstimate& pose,
             ++index_;
             inside_tolerance_ = false;
             waypoint_started_at_ = now;
-            if (index_ >= mission_.waypoints.size()) {
-                status_ = MissionStatus::Complete;
-                common::logInfo("MissionPlanner", "mission complete");
+            if (index_ >= route_.size()) {
+                finishPass(now);
             }
         }
         return;

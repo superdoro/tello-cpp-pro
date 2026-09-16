@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <optional>
@@ -38,7 +39,13 @@ public:
     // an interpolated point ahead on the path, not the indexed waypoint.
     std::optional<Waypoint> currentTarget() const;
     std::size_t currentIndex() const { return index_; }
-    std::size_t waypointCount() const { return mission_.waypoints.size(); }
+    std::size_t waypointCount() const { return route_.size(); }
+
+    // Which pass over the route is being flown (1-based), how many there are,
+    // and whether this one runs backwards.
+    int currentPass() const { return pass_; }
+    int totalPasses() const { return std::max(mission_.config.passes, 1); }
+    bool passIsReversed() const { return pass_reversed_; }
     const std::string& abortReason() const { return abort_reason_; }
 
     // Smoothed ground speed in m/s, and the lookahead it is currently buying.
@@ -90,12 +97,27 @@ private:
     bool advancePassedWaypoints(const common::Vector3& position,
                                  std::chrono::steady_clock::time_point now);
 
-    bool onFinalWaypoint() const { return index_ + 1 >= mission_.waypoints.size(); }
+    bool onFinalWaypoint() const { return index_ + 1 >= route_.size(); }
+
+    // Builds route_ for the given pass, reversing the order (and optionally
+    // the headings) when that pass runs backwards.
+    void buildRouteForPass(int pass);
+
+    // Called when the last waypoint of a pass is reached. Starts the next
+    // pass, or completes the mission.
+    void finishPass(std::chrono::steady_clock::time_point now);
 
     Mission mission_;
     FrameAlignment alignment_;
     MissionStatus status_ = MissionStatus::Idle;
     std::size_t index_ = 0;
+
+    // The waypoint order actually being flown this pass. Reversal and
+    // repetition are expressed by rebuilding this, so nothing downstream has
+    // to know a route can run backwards.
+    std::vector<Waypoint> route_;
+    int pass_ = 1;
+    bool pass_reversed_ = false;
     std::string abort_reason_;
     std::optional<Waypoint> current_target_;
 

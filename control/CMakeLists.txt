@@ -1,7 +1,7 @@
 find_package(OpenCV REQUIRED COMPONENTS core)
 
 add_library(control STATIC
-    src/frame_alignment.cpp
+    src/obstacle_avoidance.cpp
     src/pid_flight_controller.cpp
     src/mission_planner.cpp
     src/mission_io.cpp

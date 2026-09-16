@@ -1,11 +1,22 @@
+# Interface-only view of this module.
+#
+# Every public header here (i_localizer.hpp, camera_config.hpp,
+# map_metadata.hpp) is deliberately free of ORB-SLAM3 content, so anything that
+# only needs to IMPLEMENT or CALL THROUGH the interface - a mock localizer, a
+# unit test, a future module - can have the headers without the heavy vendored
+# build. That is what lets those tests run with BUILD_SLAM=OFF.
+add_library(slam_interface INTERFACE)
+target_include_directories(slam_interface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(slam_interface INTERFACE common video)
+
+if(NOT BUILD_SLAM)
+    return()
+endif()
+
 add_library(slam STATIC
     src/orb_slam3_localizer.cpp
     src/map_metadata.cpp
     src/camera_config.cpp
-)
-
-target_include_directories(slam PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 # orb_slam3 is deliberately PRIVATE: no ORB-SLAM3, Pangolin, Sophus or Eigen
@@ -13,7 +24,7 @@ target_include_directories(slam PUBLIC
 # the project on C++20 while ORB-SLAM3 compiles as C++14, and what makes
 # swapping the SLAM backend a change confined to this directory.
 target_link_libraries(slam
-    PUBLIC common video
+    PUBLIC common video slam_interface
     PRIVATE orb_slam3
 )
 

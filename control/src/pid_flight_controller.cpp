@@ -108,11 +108,18 @@ common::VelocityCommand PidFlightController::computeCommand(const common::PoseEs
     float forward = step(forward_, config_.forward, deadbanded(bodyError.x), seconds);
 
     if (config_.cruise_command > 0) {
-        // Only ever pushes towards a target that is genuinely ahead: a
-        // negative forward error means the target is behind, and cruising
-        // into it would drive the drone further away.
+        // Signed, so the cruise term pushes TOWARDS the target rather than
+        // simply forwards. A route flown in reverse keeps its recorded
+        // headings - the camera has to stay pointed at the views the map was
+        // built from - so the drone flies backwards and the target sits
+        // permanently behind it. Clamping this at zero would leave a reversed
+        // pass with no cruise at all, crawling on proportional action alone.
+        //
+        // It fades with distance either way, so the last waypoint of a pass
+        // is still a real stop, and a small overshoot gets a gentle nudge
+        // back instead of nothing.
         const float fade =
-            std::clamp(bodyError.x / std::max(config_.cruise_fade_m, 0.1f), 0.0f, 1.0f);
+            std::clamp(bodyError.x / std::max(config_.cruise_fade_m, 0.1f), -1.0f, 1.0f);
         forward += static_cast<float>(config_.cruise_command) * fade * cruise_scale_;
     }
     const float lateral = step(lateral_, config_.lateral, deadbanded(bodyError.y), seconds);

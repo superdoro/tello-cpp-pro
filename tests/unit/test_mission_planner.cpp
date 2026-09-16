@@ -532,6 +532,151 @@ void testPathOffsetPointsBackToTheRoute() {
     CHECK_NEAR(offset.z, 0.0, 0.1);
 }
 
+// --- Reversing and repeating ---------------------------------------------
+
+// Teleports the drone onto its own target until the current pass ends, then
+// stops.
+//
+// Stopping at the PASS boundary is the whole point: between passes the status
+// stays Running, so a helper that ran until Complete would quietly fly the
+// entire repeat in one call and every assertion about pass transitions would
+// be vacuously true.
+void flyOnePass(control::MissionPlanner& planner,
+                 std::chrono::steady_clock::time_point& now) {
+    const int startingPass = planner.currentPass();
+    for (std::size_t step = 0; step < 200; ++step) {
+        const auto target = planner.currentTarget();
+        if (!target.has_value()) break;
+        now += 200ms;
+        planner.onPoseUpdate(poseAt(target->position.x, target->position.y, target->position.z),
+                              now);
+        if (planner.status() == control::MissionStatus::Complete ||
+            planner.status() == control::MissionStatus::Aborted) {
+            break;
+        }
+        if (planner.currentPass() != startingPass) break;
+    }
+}
+
+void testReverseFliesTheRouteBackwards() {
+    test::beginCase("a reversed pass starts at the far end of the route");
+    control::Mission mission = straightLineMission(true);  // waypoints at z = 1..5
+    mission.config.reverse = true;
+
+    control::MissionPlanner planner;
+    planner.loadMission(mission);
+    planner.start();
+
+    CHECK(planner.passIsReversed());
+
+    const auto now = std::chrono::steady_clock::now();
+    // Starting from the far end, the first target should be back down the
+    // route, not up it.
+    planner.onPoseUpdate(poseAt(0.0f, 0.0f, 5.0f), now);
+    const auto target = planner.currentTarget();
+    CHECK(target.has_value());
+    CHECK(target->position.z < 5.0f);
+}
+
+void testReverseKeepsRecordedHeadingsByDefault() {
+    test::beginCase("reversing keeps the mapped camera headings");
+    control::Mission mission = straightLineMission(true);
+    for (auto& waypoint : mission.waypoints) {
+        waypoint.hold_heading = true;
+        waypoint.heading_rad = 0.4f;
+    }
+    mission.config.reverse = true;
+
+    control::MissionPlanner planner;
+    planner.loadMission(mission);
+    planner.start();
+
+    const auto now = std::chrono::steady_clock::now();
+    planner.onPoseUpdate(poseAt(0.0f, 0.0f, 5.0f), now);
+    const auto target = planner.currentTarget();
+    CHECK(target.has_value());
+    // Unchanged: the camera must keep facing the views the map holds.
+    CHECK_NEAR(target->heading_rad, 0.4, 0.01);
+}
+
+void testReverseHeadingsTurnsTheDroneAround() {
+    test::beginCase("--reverse-headings turns the drone to face its travel");
+    control::Mission mission = straightLineMission(true);
+    for (auto& waypoint : mission.waypoints) {
+        waypoint.hold_heading = true;
+        waypoint.heading_rad = 0.4f;
+    }
+    mission.config.reverse = true;
+    mission.config.reverse_headings = true;
+
+    control::MissionPlanner planner;
+    planner.loadMission(mission);
+    planner.start();
+
+    const auto now = std::chrono::steady_clock::now();
+    planner.onPoseUpdate(poseAt(0.0f, 0.0f, 5.0f), now);
+    const auto target = planner.currentTarget();
+    CHECK(target.has_value());
+    CHECK_NEAR(std::abs(control::wrapAngle(target->heading_rad - 0.4f)), M_PI, 0.01);
+}
+
+void testRepeatKeepsFlyingUntilThePassesAreDone() {
+    test::beginCase("repeat starts a new pass instead of completing");
+    control::Mission mission = straightLineMission(true);
+    mission.config.passes = 3;
+    mission.config.ping_pong = true;
+
+    control::MissionPlanner planner;
+    planner.loadMission(mission);
+    planner.start();
+    CHECK_EQ(planner.currentPass(), 1);
+    CHECK_EQ(planner.totalPasses(), 3);
+
+    auto now = std::chrono::steady_clock::now();
+    flyOnePass(planner, now);
+    CHECK(planner.status() != control::MissionStatus::Complete);
+    CHECK(planner.currentPass() >= 2);
+}
+
+void testRepeatEventuallyCompletes() {
+    test::beginCase("the mission does finish after the last pass");
+    control::Mission mission = straightLineMission(true);
+    mission.config.passes = 2;
+    mission.config.ping_pong = true;
+
+    control::MissionPlanner planner;
+    planner.loadMission(mission);
+    planner.start();
+
+    auto now = std::chrono::steady_clock::now();
+    for (int pass = 0; pass < 4 && planner.status() == control::MissionStatus::Running; ++pass) {
+        flyOnePass(planner, now);
+    }
+    CHECK(planner.status() == control::MissionStatus::Complete);
+    CHECK_EQ(planner.currentPass(), 2);
+}
+
+void testPingPongAlternatesDirection() {
+    test::beginCase("ping-pong turns the route round on every other pass");
+    control::Mission mission = straightLineMission(true);
+    mission.config.passes = 3;
+    mission.config.ping_pong = true;
+
+    control::MissionPlanner planner;
+    planner.loadMission(mission);
+    planner.start();
+    CHECK(!planner.passIsReversed());  // pass 1 forward
+
+    auto now = std::chrono::steady_clock::now();
+    flyOnePass(planner, now);
+    CHECK_EQ(planner.currentPass(), 2);
+    CHECK(planner.passIsReversed());   // pass 2 back
+
+    flyOnePass(planner, now);
+    CHECK_EQ(planner.currentPass(), 3);
+    CHECK(!planner.passIsReversed());  // pass 3 forward again
+}
+
 }  // namespace
 
 int main() {
@@ -560,5 +705,11 @@ int main() {
     testCruiseScaleRespectsItsFloor();
     testPathOffsetIsZeroOnTheRoute();
     testPathOffsetPointsBackToTheRoute();
+    testReverseFliesTheRouteBackwards();
+    testReverseKeepsRecordedHeadingsByDefault();
+    testReverseHeadingsTurnsTheDroneAround();
+    testRepeatKeepsFlyingUntilThePassesAreDone();
+    testRepeatEventuallyCompletes();
+    testPingPongAlternatesDirection();
     return test::summary("mission_planner");
 }

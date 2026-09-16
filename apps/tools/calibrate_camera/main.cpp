@@ -211,12 +211,18 @@ int main(int argc, char** argv) {
     info.cx = cameraMatrix.at<double>(0, 2);
     info.cy = cameraMatrix.at<double>(1, 2);
 
+    // OpenCV orders them k1 k2 p1 p2 k3, which is the order CameraConfigInfo
+    // and the ORB-SLAM3 schema both use.
     double coefficients[5] = {0, 0, 0, 0, 0};
     for (int i = 0; i < std::min(5, distortion.cols * distortion.rows); ++i) {
         coefficients[i] = distortion.at<double>(i);
     }
-    // OpenCV orders them k1 k2 p1 p2 k3; writeCameraConfig expects the same.
-    if (!slam::writeCameraConfig(outPath, info, coefficients)) return 1;
+    info.k1 = coefficients[0];
+    info.k2 = coefficients[1];
+    info.p1 = coefficients[2];
+    info.p2 = coefficients[3];
+    info.k3 = coefficients[4];
+    if (!slam::writeCameraConfig(outPath, info)) return 1;
 
     std::cout << "\nfx " << info.fx << "  fy " << info.fy << "  cx " << info.cx << "  cy "
               << info.cy << "  at " << info.width << "x" << info.height << "\n"

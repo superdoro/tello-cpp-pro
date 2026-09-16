@@ -51,8 +51,92 @@ struct GeofenceConfig {
     float min_altitude_m = -1.0f;
 };
 
+// How close this route lets the drone get to things it can see.
+//
+// Mission policy, not sensing policy: config/perception.yaml says HOW to sense,
+// and this says what to do about it on THIS route. A tight indoor corridor and
+// an open hall want different numbers with identical cameras.
+struct AvoidanceConfig {
+    // Off by default. Turning obstacle avoidance on is a deliberate act, and a
+    // route authored before the feature existed must fly exactly as it did.
+    bool enabled = false;
+
+    // Each layer can be disabled independently, which is how the first flights
+    // are done: slow and brake only, no steering.
+    bool enable_slow = true;
+    bool enable_steer = true;
+    bool enable_brake = true;
+
+    // Clearance bands, in metres. Below brake the drone holds; below steer it
+    // also aims to one side; below slow it merely eases off.
+    float brake_distance_m = 1.0f;
+    float steer_distance_m = 2.2f;
+    float slow_distance_m = 4.0f;
+
+    // Half-width of the tube ahead that must stay clear: the airframe plus a
+    // margin, widened with range to cover pose and depth error growing with
+    // distance.
+    float corridor_radius_m = 0.45f;
+    float corridor_radius_growth = 0.15f;  // extra metres of radius per metre of range
+
+    // Floor on the cruise multiplier. Not zero: crawling is still progress,
+    // and the brake layer is what actually stops the drone.
+    float min_cruise_scale = 0.15f;
+
+    // How far aside the target may be pushed, in the BODY frame.
+    //
+    // Deliberately small. This camera sees 55 degrees horizontally, so an
+    // escape aimed much further out than this is aimed into space the drone
+    // has no current evidence about.
+    float max_lateral_offset_m = 0.8f;
+    float max_vertical_offset_m = 0.5f;
+
+    // Slew limit on the offset. At 30 Hz this is 0.02 m/step, comfortably
+    // under FlightControllerConfig::target_jump_reset_m, so a manoeuvre never
+    // trips the PID's "this is a new setpoint" reset and never turns into a
+    // one-frame stick slam.
+    float offset_rate_m_per_s = 0.6f;
+
+    // --- hysteresis -------------------------------------------------------
+    // Leaving a band needs this much more clearance than entering it did.
+    float exit_margin_m = 0.35f;
+    // No state change may follow another within this long.
+    std::chrono::milliseconds min_state_dwell{400};
+    // Once a side has been chosen to escape towards, stay with it this long.
+    // Re-deciding every frame makes the drone weave between the two sides of
+    // a pillar and commit to neither.
+    std::chrono::milliseconds commit_time{1500};
+
+    // --- trusting the input ----------------------------------------------
+    // Older than this and the picture describes where the obstacles were, not
+    // where they are.
+    std::chrono::milliseconds max_snapshot_age{500};
+    // Grace period after takeoff before a missing snapshot counts as a fault.
+    std::chrono::milliseconds startup_grace{5000};
+
+    // Below min_confidence nothing but the degraded speed cap applies. Below
+    // steer_min_confidence the drone may still slow and brake, but may not
+    // choose a direction to fly in - a wrong scale that stops you early is a
+    // nuisance, a wrong scale that steers you is a crash.
+    float min_confidence = 0.25f;
+    float steer_min_confidence = 0.60f;
+
+    // Speed multiplier while degraded. Set to 1.0 for strict parity with
+    // flight behaviour before this feature existed.
+    float degraded_cruise_scale = 0.60f;
+
+    // Abort the mission if perception is unhealthy. Default false: enabling
+    // avoidance must never make a previously flyable route unflyable.
+    bool require_perception = false;
+
+    // Give up after this long held at a standstill by something that is not
+    // moving out of the way.
+    std::chrono::milliseconds blocked_abort_after{8000};
+};
+
 struct MissionConfig {
     GeofenceConfig geofence;
+    AvoidanceConfig avoidance;
 
     // Fly THROUGH intermediate waypoints instead of stopping at each one.
     //
@@ -118,6 +202,32 @@ struct MissionConfig {
     // How long tracking may stay lost before the mission aborts rather than
     // continuing to hover. Hovering blind is safe briefly and reckless
     // indefinitely.
+    // --- Flying the route more than once ----------------------------------
+
+    // How many passes over the route to fly. 1 is a single run.
+    int passes = 1;
+
+    // Fly the route backwards.
+    //
+    // The waypoint ORDER is reversed but each waypoint's recorded heading is
+    // kept, so the drone flies backwards with the camera still facing the way
+    // it faced when the map was built. That is deliberate: ORB features are
+    // viewpoint-dependent, and a corridor looks nothing like itself from the
+    // other end, so turning around to face the direction of travel would
+    // point the camera at views the map does not contain. Set
+    // reverse_headings as well only if the space was mapped in both
+    // directions.
+    bool reverse = false;
+    bool reverse_headings = false;
+
+    // Alternate direction on each pass: out, back, out, back.
+    //
+    // For a route that does not return to where it started, this is the only
+    // safe way to repeat it. Plain repetition would finish at the far end and
+    // then set course straight for the first waypoint - a line that owes
+    // nothing to the mapped route and can run through a wall.
+    bool ping_pong = false;
+
     std::chrono::milliseconds max_tracking_loss{4000};
 
     // Poses below this confidence are treated as untracked. ORB-SLAM3 can

@@ -1,4 +1,5 @@
 add_library(common STATIC
+    src/frame_alignment.cpp
     src/logging.cpp
     src/udp_socket.cpp
 )

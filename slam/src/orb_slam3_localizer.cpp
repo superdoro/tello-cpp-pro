@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <mutex>
 #include <sstream>
 
 #include <unistd.h>
@@ -15,6 +16,7 @@
 #include <opencv2/core/persistence.hpp>
 
 #include "common/logging.hpp"
+#include "slam/camera_config.hpp"
 #include "slam/map_metadata.hpp"
 
 #include <System.h>
@@ -123,6 +125,16 @@ struct OrbSlam3Localizer::Impl {
 
     // Merge tracking (localization mode) - see updateMapIdentity().
     int extending_keyframes = 0;
+
+    // Sparse metric depth for the most recent tracked frame.
+    //
+    // Captured on the SLAM thread inside processFrame() rather than read back
+    // on demand: GetTrackedMapPoints()/GetTrackedKeyPointsUn() reach into
+    // Tracking's current frame, and ORB-SLAM3 is not rigorous enough about
+    // locking for a perception thread to call into it while tracking runs.
+    common::CameraIntrinsics intrinsics;
+    mutable std::mutex depth_mutex;
+    common::SparseDepthFrame depth_samples;
     bool have_keyframe_baseline = false;
     int previous_keyframes = 0;
     bool localization_mode_frozen = false;
@@ -230,6 +242,12 @@ bool OrbSlam3Localizer::initialize(const LocalizerConfig& config) {
     // So mapping stays enabled, the merge happens, and the map is left
     // unfrozen unless LocalizerConfig::freeze_after_tracked_frames says
     // otherwise. The map file on disk is never written either way.
+
+    if (config.publish_depth_samples) {
+        CameraConfigInfo cameraInfo;
+        if (!readCameraConfig(config.camera_config_path, cameraInfo)) return false;
+        impl_->intrinsics = toIntrinsics(cameraInfo);
+    }
 
     impl_->metadata.camera_config = config.camera_config_path;
     impl_->metadata.vocabulary = config.vocabulary_path;
@@ -378,6 +396,10 @@ common::PoseEstimate OrbSlam3Localizer::processFrame(const video::Frame& frame) 
     ++impl_->tracked_since_merge;
     maybeFreezeMap();
 
+    if (impl_->config.publish_depth_samples) {
+        captureDepthSamples(frame, Tcw, trackedPoints);
+    }
+
     // ORB-SLAM3 returns Tcw (world -> camera). The controller wants the
     // camera's position in the map, i.e. the inverse.
     const Sophus::SE3f Twc = Tcw.inverse();
@@ -394,6 +416,68 @@ common::PoseEstimate OrbSlam3Localizer::processFrame(const video::Frame& frame) 
     // well-constrained frame for ORB-SLAM3's monocular pipeline.
     estimate.confidence = std::clamp(static_cast<float>(tracked) / 100.0f, 0.0f, 1.0f);
     return estimate;
+}
+
+// Turns the map points ORB-SLAM3 matched in this frame into metric depths at
+// raw image pixels - the measurements that give a monocular depth network its
+// scale.
+void OrbSlam3Localizer::captureDepthSamples(
+    const video::Frame& frame, const Sophus::SE3f& Tcw,
+    const std::vector<ORB_SLAM3::MapPoint*>& trackedPoints) {
+    const common::CameraIntrinsics& k = impl_->intrinsics;
+
+    common::SparseDepthFrame captured;
+    captured.stamp = frame.stamp;
+    captured.frame_index = frame.index;
+    captured.image_width = k.width;
+    captured.image_height = k.height;
+
+    if (k.valid() && !trackedPoints.empty()) {
+        const auto keypoints = impl_->system->GetTrackedKeyPointsUn();
+        const auto scale = static_cast<float>(impl_->config.scale_metres_per_unit);
+        captured.samples.reserve(trackedPoints.size() / 2);
+
+        const std::size_t count = std::min(trackedPoints.size(), keypoints.size());
+        for (std::size_t i = 0; i < count; ++i) {
+            ORB_SLAM3::MapPoint* point = trackedPoints[i];
+            if (!point || point->isBad()) continue;
+
+            const Eigen::Vector3f inCamera = Tcw * point->GetWorldPos();
+            // Behind the camera, or so close it is certainly a bad match.
+            if (!(inCamera.z() > 1e-3f)) continue;
+
+            // GetTrackedKeyPointsUn gives UNDISTORTED pixels; a depth network
+            // sees the raw image, so push them back through the lens model.
+            const common::Pixel raw =
+                common::distortPixel({keypoints[i].pt.x, keypoints[i].pt.y}, k);
+            if (raw.u < 0.0f || raw.v < 0.0f || raw.u >= static_cast<float>(k.width) ||
+                raw.v >= static_cast<float>(k.height)) {
+                continue;
+            }
+
+            common::DepthSample sample;
+            sample.u = raw.u;
+            sample.v = raw.v;
+            sample.depth_m = inCamera.z() * scale;
+            // A point triangulated from two views is far noisier than one
+            // carried by ten; saturating at eight keeps a handful of
+            // well-observed points from being swamped by fresh ones.
+            sample.weight =
+                std::clamp(static_cast<float>(point->Observations()) / 8.0f, 0.0f, 1.0f);
+            captured.samples.push_back(sample);
+        }
+    }
+
+    std::lock_guard lock(impl_->depth_mutex);
+    impl_->depth_samples = std::move(captured);
+}
+
+bool OrbSlam3Localizer::trackedDepthSamples(common::SparseDepthFrame& out) const {
+    if (!impl_->config.publish_depth_samples) return false;
+    std::lock_guard lock(impl_->depth_mutex);
+    if (impl_->depth_samples.samples.empty()) return false;
+    out = impl_->depth_samples;
+    return true;
 }
 
 common::TrackingState OrbSlam3Localizer::state() const {

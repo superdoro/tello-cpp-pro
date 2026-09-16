@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "common/sparse_depth.hpp"
 #include "common/types.hpp"
 #include "video/frame.hpp"
 
@@ -73,6 +74,12 @@ struct LocalizerConfig {
     // closure can shift the map frame mid-flight - see the README.
     int freeze_after_tracked_frames = 0;
 
+    // Collect per-frame sparse metric depth for perception/ to scale a
+    // monocular depth network with. Off by default: it costs a pass over the
+    // tracked map points on every frame, and nothing needs it unless the
+    // obstacle-avoidance stack is running.
+    bool publish_depth_samples = false;
+
     // Recorded in the map's metadata so a map can be traced back to the
     // footage it came from, e.g. "recordings/office_route.h264".
     std::string source_description;
@@ -137,6 +144,23 @@ public:
 
     virtual common::TrackingState state() const = 0;
     virtual LocalizerStats stats() const = 0;
+
+    // Sparse METRIC depths of the map points matched in the LAST processed
+    // frame, in RAW IMAGE pixel coordinates. Returns false when there is
+    // nothing useful, so a caller degrades rather than guesses.
+    //
+    // This is the bridge that gives a monocular depth network a scale: the
+    // network outputs unitless relative depth, and these are the same scene
+    // measured in metres by geometry the project already trusts. Note the
+    // coordinates are RAW, not undistorted - a depth network sees the raw
+    // image, and the only keypoints ORB-SLAM3 exposes are undistorted ones.
+    //
+    // Not pure: a mock, or a localizer that cannot supply this, should not be
+    // forced to, and "no samples" is a state every caller must handle anyway.
+    virtual bool trackedDepthSamples(common::SparseDepthFrame& out) const {
+        (void)out;
+        return false;
+    }
 
     // Mapping mode only. Writes the map to LocalizerConfig::map_path plus a
     // metadata sidecar. Ends the session: ORB-SLAM3 serializes its atlas from

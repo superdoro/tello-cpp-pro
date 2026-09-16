@@ -28,6 +28,11 @@ bool readCameraConfig(const std::string& path, CameraConfigInfo& info) {
     info.fy = readNumber("Camera1.fy", 0.0);
     info.cx = readNumber("Camera1.cx", 0.0);
     info.cy = readNumber("Camera1.cy", 0.0);
+    info.k1 = readNumber("Camera1.k1", 0.0);
+    info.k2 = readNumber("Camera1.k2", 0.0);
+    info.p1 = readNumber("Camera1.p1", 0.0);
+    info.p2 = readNumber("Camera1.p2", 0.0);
+    info.k3 = readNumber("Camera1.k3", 0.0);
 
     if (info.width <= 0 || info.height <= 0 || info.fx <= 0.0) {
         common::logError("CameraConfig",
@@ -40,7 +45,8 @@ bool readCameraConfig(const std::string& path, CameraConfigInfo& info) {
     // with a one-line message and no hint about which file is at fault,
     // while "900.0" works. Catch it here, where we can say something useful.
     for (const char* key : {"Camera1.fx", "Camera1.fy", "Camera1.cx", "Camera1.cy",
-                             "Camera1.k1", "Camera1.k2", "Camera1.p1", "Camera1.p2"}) {
+                             "Camera1.k1", "Camera1.k2", "Camera1.p1", "Camera1.p2",
+                             "Camera1.k3"}) {
         const cv::FileNode node = fs[key];
         if (!node.empty() && !node.isReal()) {
             common::logError("CameraConfig",
@@ -53,8 +59,7 @@ bool readCameraConfig(const std::string& path, CameraConfigInfo& info) {
     return true;
 }
 
-bool writeCameraConfig(const std::string& path, const CameraConfigInfo& info,
-                        const double distortion[5]) {
+bool writeCameraConfig(const std::string& path, const CameraConfigInfo& info) {
     std::ofstream out(path);
     if (!out) {
         common::logError("CameraConfig", "cannot write camera config: " + path);
@@ -72,11 +77,11 @@ bool writeCameraConfig(const std::string& path, const CameraConfigInfo& info,
     out << "Camera1.fy: " << info.fy << "\n";
     out << "Camera1.cx: " << info.cx << "\n";
     out << "Camera1.cy: " << info.cy << "\n\n";
-    out << "Camera1.k1: " << distortion[0] << "\n";
-    out << "Camera1.k2: " << distortion[1] << "\n";
-    out << "Camera1.p1: " << distortion[2] << "\n";
-    out << "Camera1.p2: " << distortion[3] << "\n";
-    out << "Camera1.k3: " << distortion[4] << "\n\n";
+    out << "Camera1.k1: " << info.k1 << "\n";
+    out << "Camera1.k2: " << info.k2 << "\n";
+    out << "Camera1.p1: " << info.p1 << "\n";
+    out << "Camera1.p2: " << info.p2 << "\n";
+    out << "Camera1.k3: " << info.k3 << "\n\n";
     out << "Camera.width: " << info.width << "\n";
     out << "Camera.height: " << info.height << "\n";
     out << "Camera.fps: " << info.fps << "\n";

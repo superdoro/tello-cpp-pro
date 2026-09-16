@@ -1,0 +1,397 @@
+%YAML:1.0
+---
+name: "route_from_maps/column_route_trajectory.txt"
+map_path: "maps/column_route.osa"
+geofence_max_radius_m: 6.8412322998046875
+geofence_max_altitude_m: 3.2786026000976562
+geofence_min_altitude_m: -3.4344375133514404
+max_tracking_loss_ms: 4000
+min_confidence: 0.15000000596046448
+continuous: 1
+lookahead_m: 1.2000000476837158
+lookahead_corner_limit_rad: 0.60000002384185791
+lookahead_time_s: 0.5
+lookahead_max_m: 3.
+corner_brake_time_s: 1.5
+corner_full_slow_rad: 1.2000000476837158
+corner_min_cruise_scale: 0.25
+passes: 1
+reverse: 0
+reverse_headings: 0
+ping_pong: 0
+avoid_enabled: 0
+avoid_enable_slow: 1
+avoid_enable_steer: 1
+avoid_enable_brake: 1
+avoid_brake_distance_m: 1.
+avoid_steer_distance_m: 2.2000000476837158
+avoid_slow_distance_m: 4.
+avoid_corridor_radius_m: 0.44999998807907104
+avoid_corridor_radius_growth: 0.15000000596046448
+avoid_min_cruise_scale: 0.15000000596046448
+avoid_max_lateral_offset_m: 0.80000001192092896
+avoid_max_vertical_offset_m: 0.5
+avoid_offset_rate_m_per_s: 0.60000002384185791
+avoid_exit_margin_m: 0.34999999403953552
+avoid_min_state_dwell_ms: 400
+avoid_commit_time_ms: 1500
+avoid_max_snapshot_age_ms: 500
+avoid_startup_grace_ms: 5000
+avoid_min_confidence: 0.25
+avoid_steer_min_confidence: 0.60000002384185791
+avoid_degraded_cruise_scale: 0.60000002384185791
+avoid_require_perception: 0
+avoid_blocked_abort_ms: 8000
+waypoints:
+   -
+      label: kf_1
+      x: 0.
+      y: 0.
+      z: 0.
+      heading_rad: 0.
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_8
+      x: 0.084955602884292603
+      y: -0.10770875960588455
+      z: 0.41874343156814575
+      heading_rad: 0.1786058247089386
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_13
+      x: 0.08286430686712265
+      y: -0.14893847703933716
+      z: 0.83513456583023071
+      heading_rad: 0.044197451323270798
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_16
+      x: -0.028507860377430916
+      y: -0.16592104732990265
+      z: 1.2889047861099243
+      heading_rad: 0.50747555494308472
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_19
+      x: -0.2562420666217804
+      y: -0.21098493039608002
+      z: 1.6415309906005859
+      heading_rad: 0.77385157346725464
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_22
+      x: -0.51396417617797852
+      y: -0.23435157537460327
+      z: 1.9999743700027466
+      heading_rad: 0.93080747127532959
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_26
+      x: -0.90381866693496704
+      y: -0.27802702784538269
+      z: 2.2091243267059326
+      heading_rad: 1.1406577825546265
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_30
+      x: -1.2954878807067871
+      y: -0.27860268950462341
+      z: 2.2922463417053223
+      heading_rad: 1.3727378845214844
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_35
+      x: -1.7451035976409912
+      y: -0.26653572916984558
+      z: 2.2128806114196777
+      heading_rad: 1.5920917987823486
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_41
+      x: -2.2020585536956787
+      y: -0.24934977293014526
+      z: 2.1131157875061035
+      heading_rad: 1.8611749410629272
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_46
+      x: -2.5883777141571045
+      y: -0.23403662443161011
+      z: 1.9312844276428223
+      heading_rad: 2.2042913436889648
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_50
+      x: -2.9725193977355957
+      y: -0.16899946331977844
+      z: 1.6104041337966919
+      heading_rad: 2.5104513168334961
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_54
+      x: -3.3212270736694336
+      y: -0.10941299051046371
+      z: 1.1155698299407959
+      heading_rad: 2.7849791049957275
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_58
+      x: -3.4246249198913574
+      y: -0.046325411647558212
+      z: 0.71298599243164062
+      heading_rad: 2.9133117198944092
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_62
+      x: -3.5252819061279297
+      y: -0.0072028976865112782
+      z: 0.31495657563209534
+      heading_rad: -3.0916907787322998
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_67
+      x: -3.6571300029754639
+      y: 0.061597168445587158
+      z: -0.16026584804058075
+      heading_rad: -2.9335131645202637
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_70
+      x: -3.7797822952270508
+      y: 0.10502179712057114
+      z: -0.54246574640274048
+      heading_rad: -2.7908132076263428
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_74
+      x: -3.7098379135131836
+      y: 0.173179030418396
+      z: -0.98090720176696777
+      heading_rad: -2.5858321189880371
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_78
+      x: -3.5621485710144043
+      y: 0.22903575003147125
+      z: -1.3754079341888428
+      heading_rad: -2.2081542015075684
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_80
+      x: -3.2569246292114258
+      y: 0.29338842630386353
+      z: -1.7800251245498657
+      heading_rad: -1.8516800403594971
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_82
+      x: -2.9699809551239014
+      y: 0.34840604662895203
+      z: -2.0748038291931152
+      heading_rad: -1.6939347982406616
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_85
+      x: -2.7021901607513428
+      y: 0.38533803820610046
+      z: -2.3788483142852783
+      heading_rad: -1.4807301759719849
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_89
+      x: -2.323899507522583
+      y: 0.40465176105499268
+      z: -2.5887737274169922
+      heading_rad: -1.2316672801971436
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_95
+      x: -1.884149432182312
+      y: 0.43443760275840759
+      z: -2.7424230575561523
+      heading_rad: -1.0015188455581665
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_100
+      x: -1.4744293689727783
+      y: 0.39711445569992065
+      z: -2.6234819889068604
+      heading_rad: -0.73233270645141602
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_105
+      x: -1.1759377717971802
+      y: 0.3563477098941803
+      z: -2.2813403606414795
+      heading_rad: -0.451194167137146
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_109
+      x: -0.9158165454864502
+      y: 0.30846637487411499
+      z: -1.9721124172210693
+      heading_rad: -0.25859835743904114
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_113
+      x: -0.72474265098571777
+      y: 0.27218133211135864
+      z: -1.6086887121200562
+      heading_rad: -0.062524445354938507
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_115
+      x: -0.53674310445785522
+      y: 0.22903575003147125
+      z: -1.2310030460357666
+      heading_rad: -0.060675635933876038
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_117
+      x: -0.32719045877456665
+      y: 0.20752657949924469
+      z: -0.86971759796142578
+      heading_rad: -0.16444350779056549
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_119
+      x: -0.29360416531562805
+      y: 0.16094376146793365
+      z: -0.41045057773590088
+      heading_rad: -0.051965691149234772
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000
+   -
+      label: kf_122
+      x: -0.16980428993701935
+      y: 0.16131246089935303
+      z: 0.16525326669216156
+      heading_rad: -0.051871076226234436
+      hold_heading: 1
+      position_tolerance_m: 0.25
+      heading_tolerance_rad: 0.34999999403953552
+      dwell_ms: 300
+      timeout_ms: 20000

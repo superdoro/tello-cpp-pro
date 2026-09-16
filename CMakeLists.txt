@@ -19,6 +19,7 @@ add_subdirectory(core)
 add_subdirectory(drivers/tello)
 add_subdirectory(video)
 add_subdirectory(control)
+add_subdirectory(perception)
 
 # Milestone (a)/(b): no SLAM needed.
 add_subdirectory(apps/manual_control)
@@ -29,7 +30,13 @@ add_subdirectory(apps/video_view)
 # ORB-SLAM3, which is a heavy build, so they are opt-in.
 if(BUILD_SLAM)
     add_subdirectory(third_party)
-    add_subdirectory(slam)
+endif()
+
+# Always added: slam/ defines an interface-only target (headers, no ORB-SLAM3)
+# that mocks and tests use, and gates the implementation on BUILD_SLAM itself.
+add_subdirectory(slam)
+
+if(BUILD_SLAM)
     add_subdirectory(apps/support)
     add_subdirectory(apps/map_builder)
     add_subdirectory(apps/relocalize)

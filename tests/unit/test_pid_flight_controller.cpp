@@ -223,17 +223,27 @@ void testCruiseFadesOutAtTheTarget() {
     CHECK(close < far / 2);
 }
 
-void testCruiseNeverPushesTowardsATargetBehind() {
-    test::beginCase("cruise does not push forward when the target is behind");
+void testCruisePushesTowardsTheTargetNotJustForwards() {
+    test::beginCase("cruise drives towards a target behind, for reversed passes");
     control::FlightControllerConfig config;
     config.max_horizontal_command = 100;
     config.cruise_command = 60;
     control::PidFlightController controller(config);
 
-    // Facing +z, target 1m behind at -z.
-    const auto command =
+    // Facing +z with the target 1m behind: this is exactly a reversed pass,
+    // where the recorded heading keeps the camera pointing the mapped way
+    // while the drone travels backwards.
+    const auto withCruise =
         controller.computeCommand(poseAt(0, 0, 0), waypointAt(0, 0, -1.0f), kStep);
-    CHECK(command.pitch < 0);
+
+    control::FlightControllerConfig plainConfig = config;
+    plainConfig.cruise_command = 0;
+    control::PidFlightController plain(plainConfig);
+    const auto withoutCruise =
+        plain.computeCommand(poseAt(0, 0, 0), waypointAt(0, 0, -1.0f), kStep);
+
+    CHECK(withCruise.pitch < 0);
+    CHECK(withCruise.pitch < withoutCruise.pitch);  // cruise adds backward push
 }
 
 void testCenteringStrengthensTheReturnToTheRoute() {
@@ -310,7 +320,7 @@ int main() {
     testDerivativeIsFiltered();
     testCruiseRaisesForwardCommandOnOpenRoute();
     testCruiseFadesOutAtTheTarget();
-    testCruiseNeverPushesTowardsATargetBehind();
+    testCruisePushesTowardsTheTargetNotJustForwards();
     testCenteringStrengthensTheReturnToTheRoute();
     testCenteringDoesNothingOnTheRoute();
     testCenteringDoesNotChangeForwardSpeed();
